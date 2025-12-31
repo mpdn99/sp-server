@@ -1,0 +1,24 @@
+services:
+  valkey:
+    image: valkey/valkey:7
+    container_name: valkey
+    restart: unless-stopped
+    ports:
+      - "6380:6379"   # tránh đụng redis/valkey local
+    volumes:
+      - valkey-data:/data
+
+  bun-app:
+    build: .
+    container_name: bun-app
+    restart: unless-stopped
+    depends_on:
+      - valkey
+    ports:
+      - "3000:3000"
+    environment:
+      REDIS_HOST: valkey
+      REDIS_PORT: 6379
+
+volumes:
+  valkey-data:

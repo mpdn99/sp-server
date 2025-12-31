@@ -1,0 +1,1 @@
+export const BOOST_KEY = "shopee:boost:products";

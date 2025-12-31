@@ -1,0 +1,16 @@
+{
+  "name": "spt-server",
+  "scripts": {
+    "dev": "bun run --hot src/server.ts"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.7.6",
+    "cronbake": "^0.4.0",
+    "hono": "^4.11.3",
+    "ioredis": "^5.8.2",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
