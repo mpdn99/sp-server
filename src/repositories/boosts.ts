@@ -5,15 +5,11 @@ interface BoostProduct {
   id: number;
   name: string;
   image: string;
-  boosted_at: number;
+  run_at: number;
   result: boolean;
-  message: string;
+  message: string | null;
 }
 
-/**
- * Define custom commands với Lua scripts
- * Cách này giúp tối ưu performance và type-safe hơn
- */
 redis.defineCommand("addBoost", {
   numberOfKeys: 1,
   lua: `
@@ -21,25 +17,20 @@ redis.defineCommand("addBoost", {
     local newItem = ARGV[1]
     local productId = tonumber(ARGV[2])
     local maxSize = tonumber(ARGV[3])
-    
-    -- Lấy toàn bộ list hiện tại
-    local list = redis.call('LRANGE', key, 0, -1)
-    
-    -- Tìm và xóa item có cùng ID (deduplication)
-    for i, item in ipairs(list) do
+
+    local list = redis.call('LRANGE', key, 0, maxSize - 1)
+
+    for _, item in ipairs(list) do
       local decoded = cjson.decode(item)
       if decoded.id == productId then
         redis.call('LREM', key, 1, item)
         break
       end
     end
-    
-    -- Push item mới vào đầu list
+
     redis.call('LPUSH', key, newItem)
-    
-    -- Giữ lại tối đa maxSize items
     redis.call('LTRIM', key, 0, maxSize - 1)
-    
+
     return 1
   `,
 });
@@ -49,35 +40,32 @@ redis.defineCommand("updateBoost", {
   lua: `
     local key = KEYS[1]
     local productId = tonumber(ARGV[1])
-    local result = ARGV[2]
+    local result = ARGV[2] == "true"
     local message = ARGV[3]
-    local boostedAt = tonumber(ARGV[4])
-    
-    -- Lấy toàn bộ list
-    local list = redis.call('LRANGE', key, 0, -1)
-    
-    -- Tìm và update item
+    local runAt = tonumber(ARGV[4])
+
+    if message == "null" then
+      message = nil
+    end
+
+    local list = redis.call('LRANGE', key, 0, 4)
+
     for i, item in ipairs(list) do
       local decoded = cjson.decode(item)
       if decoded.id == productId then
-        -- Update fields
-        decoded.boosted_at = boostedAt
-        decoded.result = result == "true"
+        decoded.run_at = runAt
+        decoded.result = result
         decoded.message = message
-        
-        local updatedItem = cjson.encode(decoded)
-        
-        -- Remove old và insert updated item
-        redis.call('LREM', key, 1, item)
-        redis.call('LPUSH', key, updatedItem)
-        
+
+        redis.call('LSET', key, i - 1, cjson.encode(decoded))
         return 1
       end
     end
-    
+
     return 0
   `,
 });
+
 
 /**
  * Lấy danh sách product đang boost (tối đa 5)
@@ -116,21 +104,32 @@ export const getBoostList = async (): Promise<BoostProduct[]> => {
  * Performance: O(N) với N = số items trong list (tối đa 5)
  * Network: Chỉ 1 round-trip thay vì 4 → giảm 75% latency
  */
-export const addBoostProduct = async (
-  product: Omit<BoostProduct, "boosted_at" | "result" | "message">
-): Promise<void> => {
+export const addBoostProduct = async ({
+  id: id,
+  name,
+  image,
+}: {
+  id: number;
+  name: string;
+  image: string;
+}): Promise<void> => {
   try {
-    const newProduct = JSON.stringify({
-      id: product.id,
-      name: product.name,
-      image: product.image,
-      boosted_at: 0,
+    const newProduct: BoostProduct = {
+      id: id,
+      name: name,
+      image: image,
+      run_at: 0,
       result: false,
-      message: "",
-    });
-    
+      message: null,
+    };
+
     // @ts-expect-error - Custom command defined via defineCommand
-    await redis.addBoost(BOOST_KEY, newProduct, product.id.toString(), "5");
+    await redis.addBoost(
+      BOOST_KEY,
+      JSON.stringify(newProduct),
+      id.toString(),
+      "5"
+    );
   } catch (error) {
     console.error("Failed to add boost product:", error);
     throw error;

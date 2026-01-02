@@ -1,12 +1,10 @@
 import { Hono } from "hono";
 import routes from "./routes";
-import { baker } from "./configs";
+import "./jobs";
 
 const app = new Hono();
 
 app.route("/", routes);
-
-baker.bakeAll();
 
 export default {
   port: 3000,
