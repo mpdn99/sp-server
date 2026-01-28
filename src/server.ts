@@ -7,6 +7,6 @@ const app = new Hono();
 app.route("/", routes);
 
 export default {
-  port: 3001,
+  port: 3012,
   fetch: app.fetch,
 };

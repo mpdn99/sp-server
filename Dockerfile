@@ -8,5 +8,5 @@ RUN bun install --production
 COPY src ./src
 COPY tsconfig.json ./
 
-EXPOSE 3001
+EXPOSE 3012
 CMD ["bun", "src/server.ts"]

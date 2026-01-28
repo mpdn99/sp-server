@@ -15,7 +15,7 @@ services:
     depends_on:
       - valkey
     ports:
-      - "3001:3001"
+      - "3012:3012"
     environment:
       REDIS_HOST: valkey
       REDIS_PORT: 6379
