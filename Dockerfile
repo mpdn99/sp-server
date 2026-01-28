@@ -9,4 +9,4 @@ COPY src ./src
 COPY tsconfig.json ./
 
 EXPOSE 3001
-CMD ["bun", "src/index.ts"]
+CMD ["bun", "src/server.ts"]
